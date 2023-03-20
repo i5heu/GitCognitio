@@ -6,10 +6,8 @@ const glob = require('glob');
 const htmlFiles = glob.sync('src/**/*.html');
 const htmlPlugins = htmlFiles.map(
     (file) => {
-
         // only use the file name
         bob = file.split('/').pop();
-        console.log("---->", file, bob);
 
         return new HtmlWebpackPlugin({
             template: file,
@@ -33,7 +31,18 @@ module.exports = {
             {
                 test: /\.css$/,
                 use: ['style-loader', 'css-loader']
-            }
+            },
+            {
+                test: /\.s[ac]ss$/i,
+                use: [
+                    // Creates `style` nodes from JS strings
+                    "style-loader",
+                    // Translates CSS into CommonJS
+                    "css-loader",
+                    // Compiles Sass to CSS
+                    "sass-loader",
+                ],
+            },
         ],
     },
     plugins: [
