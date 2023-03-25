@@ -136,7 +136,7 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nexpo
   \*********************/
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
-eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nconst login_page_1 = __webpack_require__(/*! ./login-page */ \"./src/login-page/index.ts\");\nconst chat_1 = __webpack_require__(/*! ./chat */ \"./src/chat/index.ts\");\n__webpack_require__(/*! ./main.scss */ \"./src/main.scss\");\ncustomElements.define(\"login-page\", login_page_1.LoginPage);\ncustomElements.define(\"chat-body\", chat_1.ChatBody);\n\n\n//# sourceURL=webpack:///./src/main.ts?");
+eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nconst login_page_1 = __webpack_require__(/*! ./login-page */ \"./src/login-page/index.ts\");\nconst chat_1 = __webpack_require__(/*! ./chat */ \"./src/chat/index.ts\");\n__webpack_require__(/*! ./main.scss */ \"./src/main.scss\");\ncustomElements.define(\"login-page\", login_page_1.LoginPage);\ncustomElements.define(\"chat-body\", chat_1.ChatBody);\nconst renderTarget = document.getElementById(\"root\");\nfunction render() {\n    renderTarget.innerHTML = \"\";\n    if (localStorage.getItem(\"token\")) {\n        renderTarget.appendChild(new chat_1.ChatBody());\n    }\n    else {\n        renderTarget.appendChild(new login_page_1.LoginPage());\n    }\n}\nrender();\n\n\n//# sourceURL=webpack:///./src/main.ts?");
 
 /***/ })
 
