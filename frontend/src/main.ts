@@ -4,6 +4,8 @@ import "./main.scss";
 
 import { MessageWebSocket } from "./communications";
 
+const socket = new MessageWebSocket("ws://localhost:8081/");
+
 customElements.define("login-page", LoginPage);
 customElements.define("chat-body", ChatBody);
 
@@ -11,22 +13,13 @@ const renderTarget = document.getElementById("root");
 function render() {
   renderTarget.innerHTML = "";
 
-  if (localStorage.getItem("token")) {
-    renderTarget.appendChild(new ChatBody());
-  } else {
-    renderTarget.appendChild(new LoginPage());
-  }
+  // if (localStorage.getItem("token")) {
+  //   renderTarget.appendChild(new ChatBody());
+  // } else {
+  //   renderTarget.appendChild(new LoginPage());
+  // }
+
+  renderTarget.appendChild(new ChatBody(socket));
 }
 
 render();
-
-const socket = new MessageWebSocket("ws://localhost:8081/");
-
-async function bob() {
-  await socket.connect();
-  let start = Date.now();
-  const vov = await socket.send("Hello, world!");
-  console.log("Time", Date.now() - start, "VOV", vov);
-}
-
-bob();

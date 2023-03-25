@@ -5,6 +5,7 @@ export class MessageWebSocket {
     [(message: any) => void, (error: Error) => void]
   >;
   private nextMessageId: number;
+  private InputHandler: (message: any) => void;
 
   constructor(private url: string) {
     this.socket = null;
@@ -35,17 +36,22 @@ export class MessageWebSocket {
           const [resolve, reject] = this.messages.get(message.id)!;
           this.messages.delete(message.id);
           resolve(message);
+        } else {
+          console.log("Message not found", message);
+          if (message.type == "input") {
+            this.InputHandler(message.data);
+          }
         }
       });
     });
   }
 
-  public send(data: any): Promise<any> {
+  public send(type: string, data: any): Promise<any> {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("WebSocket connection not open"));
     }
     const id = this.nextMessageId++;
-    const message = { id, data };
+    const message = { id, type, data };
     const promise = new Promise<any>((resolve, reject) => {
       this.messages.set(id, [resolve, reject]);
     });
@@ -59,5 +65,9 @@ export class MessageWebSocket {
 
   public disconnect(): void {
     this.socket?.close();
+  }
+
+  public setInputHandler(func: (message: any) => void): void {
+    this.InputHandler = func;
   }
 }

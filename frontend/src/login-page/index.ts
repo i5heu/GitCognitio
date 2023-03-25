@@ -6,9 +6,8 @@ export class LoginPage extends HTMLElement {
     fetch("./login-page.html")
       .then((response) => response.text())
       .then((html) => {
-        const template = document.createElement("div");
-        template.innerHTML = html;
-        (this as any).shadowRoot.appendChild(template);
+        const fragment = document.createRange().createContextualFragment(html);
+        (this as any).shadowRoot.appendChild(fragment);
       });
   }
 }
