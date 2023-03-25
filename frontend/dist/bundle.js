@@ -120,6 +120,16 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nexpo
 
 /***/ }),
 
+/***/ "./src/communications.ts":
+/*!*******************************!*\
+  !*** ./src/communications.ts ***!
+  \*******************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nexports.MessageWebSocket = void 0;\nclass MessageWebSocket {\n    constructor(url) {\n        this.url = url;\n        this.socket = null;\n        this.messages = new Map();\n        this.nextMessageId = 1;\n    }\n    connect() {\n        return new Promise((resolve, reject) => {\n            this.socket = new WebSocket(this.url);\n            this.socket.addEventListener(\"open\", () => {\n                console.log(\"WebSocket connection established\");\n                resolve();\n            });\n            this.socket.addEventListener(\"error\", (event) => {\n                reject(event);\n            });\n            this.socket.addEventListener(\"close\", () => {\n                console.log(\"WebSocket connection closed\");\n            });\n            this.socket.addEventListener(\"message\", (event) => {\n                const message = JSON.parse(event.data);\n                if (this.messages.has(message.id)) {\n                    const [resolve, reject] = this.messages.get(message.id);\n                    this.messages.delete(message.id);\n                    resolve(message);\n                }\n            });\n        });\n    }\n    send(data) {\n        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {\n            return Promise.reject(new Error(\"WebSocket connection not open\"));\n        }\n        const id = this.nextMessageId++;\n        const message = { id, data };\n        const promise = new Promise((resolve, reject) => {\n            this.messages.set(id, [resolve, reject]);\n        });\n        this.socket.send(JSON.stringify(message));\n        return promise;\n    }\n    isConnected() {\n        return !!this.socket && this.socket.readyState === WebSocket.OPEN;\n    }\n    disconnect() {\n        var _a;\n        (_a = this.socket) === null || _a === void 0 ? void 0 : _a.close();\n    }\n}\nexports.MessageWebSocket = MessageWebSocket;\n\n\n//# sourceURL=webpack:///./src/communications.ts?");
+
+/***/ }),
+
 /***/ "./src/login-page/index.ts":
 /*!*********************************!*\
   !*** ./src/login-page/index.ts ***!
@@ -134,9 +144,9 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nexpo
 /*!*********************!*\
   !*** ./src/main.ts ***!
   \*********************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
-eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nconst login_page_1 = __webpack_require__(/*! ./login-page */ \"./src/login-page/index.ts\");\nconst chat_1 = __webpack_require__(/*! ./chat */ \"./src/chat/index.ts\");\n__webpack_require__(/*! ./main.scss */ \"./src/main.scss\");\ncustomElements.define(\"login-page\", login_page_1.LoginPage);\ncustomElements.define(\"chat-body\", chat_1.ChatBody);\nconst renderTarget = document.getElementById(\"root\");\nfunction render() {\n    renderTarget.innerHTML = \"\";\n    if (localStorage.getItem(\"token\")) {\n        renderTarget.appendChild(new chat_1.ChatBody());\n    }\n    else {\n        renderTarget.appendChild(new login_page_1.LoginPage());\n    }\n}\nrender();\n\n\n//# sourceURL=webpack:///./src/main.ts?");
+eval("\nvar __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {\n    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }\n    return new (P || (P = Promise))(function (resolve, reject) {\n        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }\n        function rejected(value) { try { step(generator[\"throw\"](value)); } catch (e) { reject(e); } }\n        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }\n        step((generator = generator.apply(thisArg, _arguments || [])).next());\n    });\n};\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\nconst login_page_1 = __webpack_require__(/*! ./login-page */ \"./src/login-page/index.ts\");\nconst chat_1 = __webpack_require__(/*! ./chat */ \"./src/chat/index.ts\");\n__webpack_require__(/*! ./main.scss */ \"./src/main.scss\");\nconst communications_1 = __webpack_require__(/*! ./communications */ \"./src/communications.ts\");\ncustomElements.define(\"login-page\", login_page_1.LoginPage);\ncustomElements.define(\"chat-body\", chat_1.ChatBody);\nconst renderTarget = document.getElementById(\"root\");\nfunction render() {\n    renderTarget.innerHTML = \"\";\n    if (localStorage.getItem(\"token\")) {\n        renderTarget.appendChild(new chat_1.ChatBody());\n    }\n    else {\n        renderTarget.appendChild(new login_page_1.LoginPage());\n    }\n}\nrender();\nconst socket = new communications_1.MessageWebSocket(\"ws://localhost:8081/\");\nfunction bob() {\n    return __awaiter(this, void 0, void 0, function* () {\n        yield socket.connect();\n        let start = Date.now();\n        const vov = yield socket.send(\"Hello, world!\");\n        console.log(\"Time\", Date.now() - start, \"VOV\", vov);\n    });\n}\nbob();\n\n\n//# sourceURL=webpack:///./src/main.ts?");
 
 /***/ })
 
@@ -160,7 +170,7 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\ncons
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -216,7 +226,7 @@ eval("\nObject.defineProperty(exports, \"__esModule\", ({ value: true }));\ncons
 /******/ 	
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	// This entry module can't be inlined because the eval devtool is used.
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
 /******/ 	var __webpack_exports__ = __webpack_require__("./src/main.ts");
 /******/ 	
 /******/ })()
