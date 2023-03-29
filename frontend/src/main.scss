@@ -1,12 +1,12 @@
 $font-stack: Helvetica, sans-serif;
-$primary-color: #fff;
+$primary-color: #474747;
 
 html, body, #root {
   font: 100% $font-stack;
   color: $primary-color;
   background-color: #000;
-  height: 100vh;
-  width: 100vw;
+  height: 100px;
+  width: 100%;
   margin: 0;
   padding: 0;
   display: flex;

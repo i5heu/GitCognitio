@@ -4,7 +4,10 @@ import "./main.scss";
 
 import { MessageWebSocket } from "./communications";
 
-const socket = new MessageWebSocket("ws://localhost:8081/");
+//get ip address of websocket server
+const socket = new MessageWebSocket(
+  "ws://" + window.location.hostname + ":8081/"
+);
 
 customElements.define("login-page", LoginPage);
 customElements.define("chat-body", ChatBody);
