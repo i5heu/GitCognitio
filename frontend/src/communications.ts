@@ -4,13 +4,11 @@ export class MessageWebSocket {
     number,
     [(message: any) => void, (error: Error) => void]
   >;
-  private nextMessageId: number;
   private InputHandler: (message: any) => void;
 
   constructor(private url: string) {
     this.socket = null;
     this.messages = new Map();
-    this.nextMessageId = 1;
   }
 
   public connect(): Promise<void> {
@@ -50,7 +48,7 @@ export class MessageWebSocket {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("WebSocket connection not open"));
     }
-    const id = this.nextMessageId++;
+    const id = new Date().getTime();
     const message = { id, type, data };
     const promise = new Promise<any>((resolve, reject) => {
       this.messages.set(id, [resolve, reject]);
