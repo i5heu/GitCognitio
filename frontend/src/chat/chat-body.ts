@@ -1,12 +1,16 @@
 import { MessageWebSocket } from "../communications";
+import { Store } from "../store/store";
+import { ChatItem } from "./chat-item";
 
 export class ChatBody extends HTMLElement {
   private socket: MessageWebSocket;
 
-  constructor(socket: MessageWebSocket) {
+  constructor(socket: MessageWebSocket, store: Store) {
     super();
     this.socket = socket;
     this.attachShadow({ mode: "open" });
+
+    customElements.define("chat-item", ChatItem);
 
     fetch("./chat-body.html")
       .then((response) => response.text())
@@ -25,6 +29,8 @@ export class ChatBody extends HTMLElement {
         message;
     });
     this.sendKeyStrokeListener();
+
+    this.shadowRoot.getElementById("chatHistory").appendChild(new ChatItem());
   }
 
   async sendKeyStrokeListener() {
