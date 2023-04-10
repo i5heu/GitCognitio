@@ -30,7 +30,11 @@ export class ChatBody extends HTMLElement {
     });
     this.sendKeyStrokeListener();
 
-    this.shadowRoot.getElementById("chatHistory").appendChild(new ChatItem());
+    this.shadowRoot
+      .getElementById("chatHistory")
+      .appendChild(new ChatItem(() => this.render()));
+
+    this.render();
   }
 
   async sendKeyStrokeListener() {
@@ -44,5 +48,11 @@ export class ChatBody extends HTMLElement {
         const vov = await this.socket.send("input", event.key);
         console.log("Time", Date.now() - start, "VOV", vov);
       });
+  }
+
+  render() {
+    this.shadowRoot
+      .getElementById("chatHistory")
+      .appendChild(new ChatItem(() => this.render()));
   }
 }
