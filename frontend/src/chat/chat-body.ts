@@ -3,13 +3,10 @@ import { Store } from "../store/store";
 import { ChatItem } from "./chat-item";
 
 export class ChatBody extends HTMLElement {
-  private socket: MessageWebSocket;
-  private store: Store;
+  public ID: number = 1;
 
-  constructor(socket: MessageWebSocket, store: Store) {
+  constructor() {
     super();
-    this.socket = socket;
-    this.store = store;
     this.attachShadow({ mode: "open" });
 
     customElements.define("chat-item", ChatItem);
@@ -24,12 +21,6 @@ export class ChatBody extends HTMLElement {
   }
 
   async setup() {
-    await this.socket.connect();
-    this.socket.setInputHandler((message: any) => {
-      console.log("Input Handler", message);
-      (this.shadowRoot.querySelector("#chatInput") as HTMLInputElement).value +=
-        message;
-    });
     this.sendKeyStrokeListener();
     this.render();
   }
@@ -42,32 +33,24 @@ export class ChatBody extends HTMLElement {
       .addEventListener("keyup", async (event: KeyboardEvent) => {
         let start = Date.now();
         //get key pressed
-        const vov = await this.socket.send("input", event.key);
-        console.log("Time", Date.now() - start, "VOV", vov);
         this.render();
       });
 
-    new interaction(this.shadowRoot, this.store).setInputEventListener();
+    new interaction(this.shadowRoot).setInputEventListener();
   }
 
   render() {
     console.log("render");
-    const messages = this.store.get("userInput").items;
     const chatHistory = this.shadowRoot.querySelector("#chatHistory");
     chatHistory.innerHTML = "";
-    messages.forEach((message: any) => {
-      const chatItem = new ChatItem(message);
-      chatHistory.appendChild(chatItem);
-    });
   }
 }
 
 class interaction {
   shadowRoot: ShadowRoot;
   store: Store;
-  constructor(shadowRoot: ShadowRoot, store: Store) {
+  constructor(shadowRoot: ShadowRoot) {
     this.shadowRoot = shadowRoot;
-    this.store = store;
   }
 
   setInputEventListener() {

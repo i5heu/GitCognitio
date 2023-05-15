@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,6 +21,12 @@ var upgrader = websocket.Upgrader{
 type Connection struct {
 	*websocket.Conn
 	sync.Mutex
+}
+
+type Message struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	Data string `json:"data"`
 }
 
 func (c *Connection) safeWrite(mt int, payload []byte) error {
@@ -50,13 +57,17 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	connectionsMutex.Unlock()
 
 	for {
-		mt, message, err := c.ReadMessage()
+		_, _, err := c.ReadMessage()
 		if err != nil {
 			log.Printf("error reading message: %v\n", err)
 			break
 		}
 
-		broadcast(mt, message)
+		broadcastMessage(Message{
+			ID:   "1",
+			Type: "message",
+			Data: "meeep",
+		})
 	}
 }
 
@@ -75,4 +86,15 @@ func broadcast(mt int, message []byte) {
 			i--
 		}
 	}
+}
+
+func broadcastMessage(message Message) {
+
+	b, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("error marshalling message: %v\n", err)
+		return
+	}
+
+	broadcast(websocket.TextMessage, b)
 }

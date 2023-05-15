@@ -1,3 +1,5 @@
+import { render } from "./render";
+
 export class MessageWebSocket {
   private socket: WebSocket | null;
   private messages: Map<
@@ -6,9 +8,12 @@ export class MessageWebSocket {
   >;
   private InputHandler: (message: any) => void;
 
-  constructor(private url: string) {
+  private renderInstance: render;
+
+  constructor(private url: string, renderInstance: render) {
     this.socket = null;
     this.messages = new Map();
+    this.renderInstance = renderInstance;
   }
 
   public connect(): Promise<void> {
@@ -30,16 +35,7 @@ export class MessageWebSocket {
 
       this.socket.addEventListener("message", (event) => {
         const message = JSON.parse(event.data);
-        if (this.messages.has(message.id)) {
-          const [resolve, reject] = this.messages.get(message.id)!;
-          this.messages.delete(message.id);
-          resolve(message);
-        } else {
-          console.log("Message not found", message);
-          if (message.type == "input") {
-            this.InputHandler(message.data);
-          }
-        }
+        router.route(this.renderInstance, message.type, message.data);
       });
     });
   }
@@ -67,5 +63,25 @@ export class MessageWebSocket {
 
   public setInputHandler(func: (message: any) => void): void {
     this.InputHandler = func;
+  }
+}
+
+class router {
+  public static route(
+    renderInstance: render,
+    route: string,
+    message: any
+  ): void {
+    console.log("route", route, message);
+
+    switch (route) {
+      case "message":
+        console.log("Message", message);
+        renderInstance.renderChatItem(message);
+
+        break;
+      default:
+        console.log("Unknown route", route);
+    }
   }
 }
