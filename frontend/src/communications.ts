@@ -1,4 +1,6 @@
 import { render } from "./render";
+import { ChatBody } from "./chat/chat-body";
+import { ChatItem } from "./chat/chat-item";
 
 export class MessageWebSocket {
   private socket: WebSocket | null;
@@ -9,11 +11,12 @@ export class MessageWebSocket {
   private InputHandler: (message: any) => void;
 
   private renderInstance: render;
+  private vov: ChatBody;
 
-  constructor(private url: string, renderInstance: render) {
+  constructor(private url: string, vov: ChatBody) {
     this.socket = null;
     this.messages = new Map();
-    this.renderInstance = renderInstance;
+    this.vov = vov;
   }
 
   public connect(): Promise<void> {
@@ -35,13 +38,14 @@ export class MessageWebSocket {
 
       this.socket.addEventListener("message", (event) => {
         const message = JSON.parse(event.data);
+        console.log("message", message);
         router.route(this.renderInstance, message.type, message.data);
       });
     });
   }
 
   public send(type: string, data: any): Promise<any> {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    if (!this.isConnected()) {
       return Promise.reject(new Error("WebSocket connection not open"));
     }
     const id = new Date().getTime();
@@ -77,7 +81,11 @@ class router {
     switch (route) {
       case "message":
         console.log("Message", message);
-        renderInstance.renderChatItem(message);
+        const renderTarget = document.getElementById("root");
+
+        console.log("renderTarget", renderTarget);
+
+        const vov = renderTarget.appendChild(new ChatItem(message));
 
         break;
       default:

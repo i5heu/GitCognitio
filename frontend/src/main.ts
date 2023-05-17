@@ -8,14 +8,18 @@ import { render } from "./render";
 customElements.define("login-page", LoginPage);
 customElements.define("chat-body", ChatBody);
 
-const renderInstance = new render();
+const renderTarget = document.getElementById("root");
+const vov = renderTarget.appendChild(new ChatBody());
 
 //get ip address of websocket server
 const socketManager = new MessageWebSocket(
   "ws://" + window.location.hostname + ":8081/",
-  renderInstance
+  vov
 );
 
-socketManager.connect();
-
-(window as any).bob = socketManager.send;
+socketManager.connect().then(() => {
+  console.log("connected");
+  socketManager.send("login", { username: "bob" });
+  socketManager.send("login", { username: "bob" });
+  socketManager.send("login", { username: "bob" });
+});
