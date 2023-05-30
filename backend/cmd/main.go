@@ -57,16 +57,28 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	connectionsMutex.Unlock()
 
 	for {
-		_, _, err := c.ReadMessage()
+		_, byteMessage, err := c.ReadMessage()
 		if err != nil {
 			log.Printf("error reading message: %v\n", err)
 			break
 		}
 
+		var message Message
+		err = json.Unmarshal(byteMessage, &message)
+		if err != nil {
+			log.Printf("error unmarshalling message: %v\n", err)
+			broadcastMessage(Message{
+				ID:   "1",
+				Type: "error",
+				Data: "error unmarshalling message",
+			})
+			continue
+		}
+
 		broadcastMessage(Message{
-			ID:   "1",
-			Type: "message",
-			Data: "meeep",
+			ID:   message.ID,
+			Type: message.Type,
+			Data: message.Data,
 		})
 	}
 }

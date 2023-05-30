@@ -1,25 +1,18 @@
-import { LoginPage } from "./login-page";
 import { ChatBody } from "./chat/chat-body";
 import "./main.scss";
 
-import { MessageWebSocket } from "./communications";
-import { render } from "./render";
+import { Communications } from "./communications";
 
-customElements.define("login-page", LoginPage);
+const comms = new Communications("ws://" + window.location.hostname + ":8081/");
+
 customElements.define("chat-body", ChatBody);
 
 const renderTarget = document.getElementById("root");
-const vov = renderTarget.appendChild(new ChatBody());
+renderTarget.appendChild(new ChatBody(comms));
 
-//get ip address of websocket server
-const socketManager = new MessageWebSocket(
-  "ws://" + window.location.hostname + ":8081/",
-  vov
-);
-
-socketManager.connect().then(() => {
+comms.connect().then(() => {
   console.log("connected");
-  socketManager.send("login", { username: "bob" });
-  socketManager.send("login", { username: "bob" });
-  socketManager.send("login", { username: "bob" });
+  comms.send("1", "login", "bob");
+  comms.send("1", "login", "bob");
+  comms.send("1", "login", "bob");
 });

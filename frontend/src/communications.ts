@@ -1,22 +1,15 @@
-import { render } from "./render";
-import { ChatBody } from "./chat/chat-body";
-import { ChatItem } from "./chat/chat-item";
-
-export class MessageWebSocket {
+export class Communications {
   private socket: WebSocket | null;
+  public Router: router;
   private messages: Map<
-    number,
+    string,
     [(message: any) => void, (error: Error) => void]
   >;
-  private InputHandler: (message: any) => void;
 
-  private renderInstance: render;
-  private vov: ChatBody;
-
-  constructor(private url: string, vov: ChatBody) {
+  constructor(private url: string) {
     this.socket = null;
     this.messages = new Map();
-    this.vov = vov;
+    this.Router = new router();
   }
 
   public connect(): Promise<void> {
@@ -39,16 +32,15 @@ export class MessageWebSocket {
       this.socket.addEventListener("message", (event) => {
         const message = JSON.parse(event.data);
         console.log("message", message);
-        router.route(this.renderInstance, message.type, message.data);
+        this.Router.route(message.type, message);
       });
     });
   }
 
-  public send(type: string, data: any): Promise<any> {
+  public send(id: string, type: string, data: string): Promise<any> {
     if (!this.isConnected()) {
       return Promise.reject(new Error("WebSocket connection not open"));
     }
-    const id = new Date().getTime();
     const message = { id, type, data };
     const promise = new Promise<any>((resolve, reject) => {
       this.messages.set(id, [resolve, reject]);
@@ -64,32 +56,23 @@ export class MessageWebSocket {
   public disconnect(): void {
     this.socket?.close();
   }
-
-  public setInputHandler(func: (message: any) => void): void {
-    this.InputHandler = func;
-  }
 }
 
+type RouteFunction = (message: any) => void;
+
 class router {
-  public static route(
-    renderInstance: render,
-    route: string,
-    message: any
-  ): void {
+  private routes: Record<string, RouteFunction> = {};
+
+  public route(route: string, message: any): void {
     console.log("route", route, message);
 
-    switch (route) {
-      case "message":
-        console.log("Message", message);
-        const renderTarget = document.getElementById("root");
-
-        console.log("renderTarget", renderTarget);
-
-        const vov = renderTarget.appendChild(new ChatItem(message));
-
-        break;
-      default:
-        console.log("Unknown route", route);
+    if (this.routes[route]) {
+      console.log("route", route, message);
+      this.routes[route](message);
     }
+  }
+
+  public register(route: string, callback: RouteFunction): void {
+    this.routes[route] = callback;
   }
 }
