@@ -1,3 +1,5 @@
+import * as MarkdownIt from "markdown-it";
+
 export class ChatItem extends HTMLElement {
   deleteCall: () => void;
   constructor(deleteCall = () => {}) {
@@ -21,7 +23,11 @@ export class ChatItem extends HTMLElement {
 
   addContent(message: any) {
     console.log("addContent", message);
-    this.shadowRoot.querySelector(".content").innerHTML = message.data;
+    const md = new MarkdownIt();
+
+    // Convert Markdown to HTML
+    const html = md.render(message.data);
+    this.shadowRoot.querySelector(".content").innerHTML = html;
   }
 
   attachDeleteBtnEvent() {

@@ -23,37 +23,30 @@ export class ChatBody extends HTMLElement {
   }
 
   setup() {
-    this.sendKeyStrokeListener();
+    this.setInputEventListener();
     this.render();
     this.comms.Router.register("message", this.messageHandler.bind(this));
     this.comms.Router.register("typing", this.typingHandler.bind(this));
   }
 
   async typingHandler(message: any) {
+    // ignore own typing
     if (message.id === InstanceIdentifier.getInstanceIdentifier()) {
       return;
     }
 
-    (this.shadowRoot.querySelector("#chatInput") as HTMLInputElement).value =
-      message.data;
+    this.adjustTextArea();
+    this.chatInput.value = message.data;
   }
 
   async messageHandler(message: any) {
-    console.log("this", this.shadowRoot);
-    console.log("messageHandler", message);
-    const chatHistory = this.shadowRoot.querySelector("#chatHistory");
     const chatItem = new ChatItem();
     await chatItem.init();
     chatItem.addContent(message);
-    chatHistory.appendChild(chatItem);
+    this.chatHistory.appendChild(chatItem);
 
     //scroll to bottom
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-  }
-
-  async sendKeyStrokeListener() {
-    console.log("this.fragment", this.shadowRoot);
-    this.setInputEventListener();
+    this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
   }
 
   render() {
@@ -67,24 +60,63 @@ export class ChatBody extends HTMLElement {
   }
 
   setInputEventListener() {
-    this.shadowRoot
-      .querySelector("#chatInput")
-      .addEventListener("keyup", async (event: KeyboardEvent) => {
-        if (event.key === "Enter") {
-          const message = (
-            this.shadowRoot.querySelector("#chatInput") as HTMLInputElement
-          ).value;
+    this.chatInput.addEventListener(
+      "keypress",
+      async (event: KeyboardEvent) => {
+        this.adjustTextArea();
 
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey &&
+          this.chatInput.value.trim() == ""
+        ) {
+          this.chatInput.value = "";
+          this.adjustTextArea();
+          event.preventDefault();
+          return;
+        }
+
+        if (
+          event.key === "Enter" &&
+          !event.shiftKey &&
+          this.chatInput.value != ""
+        ) {
+          const message = this.chatInput.value;
           this.comms.send("1", "message", message);
+
+          // clear input after keypress
+          setTimeout(() => {
+            this.chatInput.value = "";
+            this.adjustTextArea();
+          }, 0);
         } else {
           const id = InstanceIdentifier.getInstanceIdentifier();
-          this.comms.send(
-            id,
-            "typing",
-            (this.shadowRoot.querySelector("#chatInput") as HTMLInputElement)
-              .value
-          );
+          this.comms.send(id, "typing", this.chatInput.value);
         }
-      });
+      }
+    );
+  }
+
+  adjustTextArea() {
+    this.chatInput.style.height = ""; // Reset the height to recalculate the scroll height
+    this.chatInput.style.height = this.chatInputContentHeight + "px";
+    this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+  }
+
+  get chatHistory(): HTMLDivElement {
+    return this.shadowRoot.querySelector("#chatHistory");
+  }
+
+  get chatInput(): HTMLTextAreaElement {
+    return this.shadowRoot.querySelector("#chatInput");
+  }
+
+  get chatInputContentHeight() {
+    var style = window.getComputedStyle(this.chatInput);
+    const paddingTop = parseFloat(style.paddingTop);
+    const paddingBottom = parseFloat(style.paddingBottom);
+    const totalPaddingHeight = paddingTop + paddingBottom;
+
+    return totalPaddingHeight / 2 + this.chatInput.scrollHeight;
   }
 }
