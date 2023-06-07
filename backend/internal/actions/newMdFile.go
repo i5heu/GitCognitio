@@ -1,6 +1,8 @@
 package actions
 
-import "github.com/i5heu/GitCognitio/internal/gitio"
+import (
+	"github.com/i5heu/GitCognitio/internal/gitio"
+)
 
 func NewMdFile(content string, path string, rm *gitio.RepoManager) error {
 	err := gitio.CreateFile(path, content)
@@ -13,10 +15,6 @@ func NewMdFile(content string, path string, rm *gitio.RepoManager) error {
 		return err
 	}
 
-	err = rm.Push()
-	if err != nil {
-		return err
-	}
-
+	rm.PushNonBlock()
 	return nil
 }

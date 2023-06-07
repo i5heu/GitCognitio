@@ -1,6 +1,7 @@
 package gitio
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +15,9 @@ import (
 
 // RepoManager is a structure that encapsulates the Git repository operations.
 type RepoManager struct {
-	Repo *git.Repository
-	auth ssh.AuthMethod
+	Repo        *git.Repository
+	auth        ssh.AuthMethod
+	PushChannel chan bool
 }
 
 // RepoStats holds statistics for a Git repository.
@@ -35,6 +37,7 @@ func NewRepoManager(repoURL, path, sshPath string) (*RepoManager, error) {
 	var repo *git.Repository
 	var err error
 	var sshAuth ssh.AuthMethod
+	pushChannel := make(chan bool, 10)
 
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
@@ -80,7 +83,7 @@ func NewRepoManager(repoURL, path, sshPath string) (*RepoManager, error) {
 		return nil, err
 	}
 
-	return &RepoManager{Repo: repo, auth: sshAuth}, nil
+	return &RepoManager{Repo: repo, auth: sshAuth, PushChannel: pushChannel}, nil
 }
 
 // Commit commits changes to the repository.
@@ -228,4 +231,32 @@ func (rm *RepoManager) GetRepoStats() (*RepoStats, error) {
 	}
 
 	return stats, nil
+}
+
+func (rm *RepoManager) StartPushListener() {
+	go func() {
+		for range rm.PushChannel {
+			fmt.Println("Pushing to remote")
+			// Perform the push operation
+			err := rm.Push()
+			if err != nil {
+				// Handle the error appropriately
+				fmt.Println("Error pushing:", err)
+			} else {
+				fmt.Println("Pushed")
+			}
+		}
+	}()
+}
+
+func (rm *RepoManager) PushNonBlock() {
+	go func() {
+		select {
+		case rm.PushChannel <- true:
+			// Value pushed to the channel
+		default:
+			// Channel is not ready to receive the value
+			fmt.Println("Channel is not ready to receive the value")
+		}
+	}()
 }

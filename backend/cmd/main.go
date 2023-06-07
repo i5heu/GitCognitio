@@ -149,6 +149,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize RepoManager: %s", err)
 	}
+	rm.StartPushListener()
 
 	connections := make([]*Connection, 0)
 	connectionsMutex := &sync.Mutex{}
