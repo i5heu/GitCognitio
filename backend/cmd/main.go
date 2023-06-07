@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/i5heu/GitCognitio/internal/actions"
 	"github.com/i5heu/GitCognitio/internal/gitio"
+	"github.com/i5heu/GitCognitio/types"
 )
 
 const (
@@ -25,12 +25,6 @@ const (
 type Connection struct {
 	*websocket.Conn
 	sync.Mutex
-}
-
-type Message struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-	Data string `json:"data"`
 }
 
 func (c *Connection) safeWrite(mt int, payload []byte) error {
@@ -47,7 +41,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex) {
+func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex, broadcastChannel chan types.Message) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("error upgrading connection: %v\n", err)
@@ -62,6 +56,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 	}()
 
 	connectionsMutex.Lock()
+	//needs authentication
 	*connections = append(*connections, c)
 	connectionsMutex.Unlock()
 
@@ -72,66 +67,71 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 			break
 		}
 
-		var message Message
+		var message types.Message
 		err = json.Unmarshal(byteMessage, &message)
 		if err != nil {
 			log.Printf("error unmarshalling message: %v\n", err)
-			broadcastMessage(Message{
+			broadcastMessage(broadcastChannel, types.Message{
 				ID:   "1",
 				Type: "error",
 				Data: "error unmarshalling message",
-			}, connections, connectionsMutex)
+			})
 			continue
 		}
 
-		stat, err := rm.GetRepoStats()
-		if err != nil {
-			log.Printf("error getting repo stats: %v\n", err)
+		switch message.Type {
+		case "message":
+			actions.NewMdFile(message, &broadcastChannel, rm)
+		case "delete":
+			actions.DeleteFile(message, &broadcastChannel, rm)
+		case "typing":
+			broadcastMessage(broadcastChannel, types.Message{
+				ID:   message.ID,
+				Type: message.Type,
+				Data: message.Data,
+			})
+		default:
+			broadcastMessage(broadcastChannel, types.Message{
+				ID:   message.ID,
+				Type: "error",
+				Data: "unknown message type",
+			})
 			continue
 		}
 
-		if message.Type == "message" {
-			err = actions.NewMdFile(message.Data, "test.md", rm)
-			if err != nil {
-				log.Printf("error creating file: %v\n", err)
-				broadcastMessage(Message{
-					ID:   "1",
-					Type: "error",
-					Data: "error creating file",
-				}, connections, connectionsMutex)
-				continue
-			}
-		}
-
-		broadcastMessage(Message{
-			ID:   message.ID,
-			Type: message.Type,
-			Data: strconv.FormatInt(stat.RepoSize, 10),
-		}, connections, connectionsMutex)
 	}
 }
 
-func broadcastMessage(message Message, connections *[]*Connection, connectionsMutex *sync.Mutex) {
+func broadcastMessage(broadcastChannel chan types.Message, message types.Message) {
+	broadcastChannel <- message
+}
 
-	b, err := json.Marshal(message)
-	if err != nil {
-		log.Printf("error marshalling message: %v\n", err)
-		return
-	}
+func broadcastMessageWorker(broadcastChannel <-chan types.Message, connections *[]*Connection, connectionsMutex *sync.Mutex) {
+	go func() {
+		for message := range broadcastChannel {
+			fmt.Println("broadcasting message", message)
 
-	connectionsMutex.Lock()
-	defer connectionsMutex.Unlock()
-
-	for i := 0; i < len(*connections); i++ {
-		err := (*connections)[i].safeWrite(websocket.TextMessage, b)
-		if err != nil {
-			if err := (*connections)[i].Close(); err != nil {
-				log.Printf("error closing connection: %v\n", err)
+			b, err := json.Marshal(message)
+			if err != nil {
+				log.Printf("error marshalling message: %v\n", err)
+				return
 			}
-			*connections = append((*connections)[:i], (*connections)[i+1:]...)
-			i--
+			connectionsMutex.Lock()
+
+			for i := 0; i < len(*connections); i++ {
+				err := (*connections)[i].safeWrite(websocket.TextMessage, b)
+				if err != nil {
+					if err := (*connections)[i].Close(); err != nil {
+						log.Printf("error closing connection: %v\n", err)
+					}
+					*connections = append((*connections)[:i], (*connections)[i+1:]...)
+					i--
+				}
+			}
+
+			connectionsMutex.Unlock()
 		}
-	}
+	}()
 }
 
 func main() {
@@ -153,9 +153,11 @@ func main() {
 
 	connections := make([]*Connection, 0)
 	connectionsMutex := &sync.Mutex{}
+	broadcastChannel := make(chan types.Message, 100)
+	broadcastMessageWorker(broadcastChannel, &connections, connectionsMutex)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handleConnection(w, r, rm, &connections, connectionsMutex)
+		handleConnection(w, r, rm, &connections, connectionsMutex, broadcastChannel)
 	})
 
 	fmt.Println("Server started on", WebSocketAddress)

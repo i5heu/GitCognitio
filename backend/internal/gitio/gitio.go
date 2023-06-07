@@ -56,9 +56,15 @@ func CreateFile(relativePath, contents string) error {
 		return err
 	}
 
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create directories: %w", err)
+	}
+
 	if err := ioutil.WriteFile(path, []byte(contents), 0644); err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
+
 	return nil
 }
 

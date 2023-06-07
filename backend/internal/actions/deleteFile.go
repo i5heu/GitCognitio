@@ -7,11 +7,9 @@ import (
 	"github.com/i5heu/GitCognitio/types"
 )
 
-func NewMdFile(message types.Message, broadcastChannel *chan types.Message, rm *gitio.RepoManager) {
+func DeleteFile(message types.Message, broadcastChannel *chan types.Message, rm *gitio.RepoManager) {
 
-	path := "messages/" + message.ID + ".md"
-
-	err := gitio.CreateFile(path, message.Data)
+	err := gitio.DeleteFile(message.Path)
 	if err != nil {
 		fmt.Println("error creating file", err)
 		broadcastMessage(broadcastChannel, types.Message{
@@ -21,7 +19,7 @@ func NewMdFile(message types.Message, broadcastChannel *chan types.Message, rm *
 		})
 	}
 
-	err = rm.Commit("New file: " + path)
+	err = rm.Commit("Delete file: " + message.Path)
 	if err != nil {
 		fmt.Println("error committing file", err)
 		broadcastMessage(broadcastChannel, types.Message{
@@ -36,7 +34,6 @@ func NewMdFile(message types.Message, broadcastChannel *chan types.Message, rm *
 	broadcastMessage(broadcastChannel, types.Message{
 		ID:   message.ID,
 		Type: "success",
-		Path: path,
-		Data: message.Data,
+		Path: message.Path,
 	})
 }
