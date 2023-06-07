@@ -14,13 +14,12 @@ import (
 	"github.com/i5heu/GitCognitio/internal/gitio"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow any origin for this example
-	},
-}
+const (
+	repoURL          = "git@github.com:i5heu/Tyche-Test.git"
+	ReadBufferSize   = 1024
+	WriteBufferSize  = 1024
+	WebSocketAddress = ":8081"
+)
 
 type Connection struct {
 	*websocket.Conn
@@ -39,35 +38,15 @@ func (c *Connection) safeWrite(mt int, payload []byte) error {
 	return c.WriteMessage(mt, payload)
 }
 
-const (
-	repoURL = "git@github.com:i5heu/Tyche-Test.git"
-)
-
-func main() {
-	// Get the home directory
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Failed to get home directory: %s", err)
-	}
-
-	// Set the path to the .GitCognito directory in the home directory
-	path := filepath.Join(home, ".GitCognito")
-
-	// Initialize RepoManager
-	rm, err := gitio.NewRepoManager(repoURL, path, filepath.Join(home, ".ssh", "id_rsa"))
-	if err != nil {
-		log.Fatalf("Failed to initialize RepoManager: %s", err)
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handleConnection(w, r, rm)
-	})
-
-	fmt.Println("Server started on :8081")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  ReadBufferSize,
+	WriteBufferSize: WriteBufferSize,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow any origin for this example
+	},
 }
 
-func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager) {
+func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("error upgrading connection: %v\n", err)
@@ -75,10 +54,14 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 	}
 
 	c := &Connection{Conn: conn}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			log.Printf("error closing connection: %v\n", err)
+		}
+	}()
 
 	connectionsMutex.Lock()
-	connections = append(connections, c)
+	*connections = append(*connections, c)
 	connectionsMutex.Unlock()
 
 	for {
@@ -96,7 +79,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 				ID:   "1",
 				Type: "error",
 				Data: "error unmarshalling message",
-			})
+			}, connections, connectionsMutex)
 			continue
 		}
 
@@ -110,28 +93,11 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 			ID:   message.ID,
 			Type: message.Type,
 			Data: strconv.FormatInt(stat.RepoSize, 10),
-		})
+		}, connections, connectionsMutex)
 	}
 }
 
-var connections = make([]*Connection, 0)
-var connectionsMutex = &sync.Mutex{}
-
-func broadcast(mt int, message []byte) {
-	connectionsMutex.Lock()
-	defer connectionsMutex.Unlock()
-
-	for i := 0; i < len(connections); i++ {
-		err := connections[i].safeWrite(mt, message)
-		if err != nil {
-			connections[i].Close()
-			connections = append(connections[:i], connections[i+1:]...)
-			i--
-		}
-	}
-}
-
-func broadcastMessage(message Message) {
+func broadcastMessage(message Message, connections *[]*Connection, connectionsMutex *sync.Mutex) {
 
 	b, err := json.Marshal(message)
 	if err != nil {
@@ -139,5 +105,44 @@ func broadcastMessage(message Message) {
 		return
 	}
 
-	broadcast(websocket.TextMessage, b)
+	connectionsMutex.Lock()
+	defer connectionsMutex.Unlock()
+
+	for i := 0; i < len(*connections); i++ {
+		err := (*connections)[i].safeWrite(websocket.TextMessage, b)
+		if err != nil {
+			if err := (*connections)[i].Close(); err != nil {
+				log.Printf("error closing connection: %v\n", err)
+			}
+			*connections = append((*connections)[:i], (*connections)[i+1:]...)
+			i--
+		}
+	}
+}
+
+func main() {
+	// Get the home directory
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Failed to get home directory: %s", err)
+	}
+
+	// Set the path to the .GitCognito directory in the home directory
+	path := filepath.Join(home, ".GitCognito")
+
+	// Initialize RepoManager
+	rm, err := gitio.NewRepoManager(repoURL, path, filepath.Join(home, ".ssh", "id_rsa"))
+	if err != nil {
+		log.Fatalf("Failed to initialize RepoManager: %s", err)
+	}
+
+	connections := make([]*Connection, 0)
+	connectionsMutex := &sync.Mutex{}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handleConnection(w, r, rm, &connections, connectionsMutex)
+	})
+
+	fmt.Println("Server started on", WebSocketAddress)
+	log.Fatal(http.ListenAndServe(WebSocketAddress, nil))
 }
