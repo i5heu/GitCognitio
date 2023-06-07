@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/i5heu/GitCognitio/internal/actions"
 	"github.com/i5heu/GitCognitio/internal/gitio"
 )
 
@@ -87,6 +88,19 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		if err != nil {
 			log.Printf("error getting repo stats: %v\n", err)
 			continue
+		}
+
+		if message.Type == "message" {
+			err = actions.NewMdFile(message.Data, "test.md", rm)
+			if err != nil {
+				log.Printf("error creating file: %v\n", err)
+				broadcastMessage(Message{
+					ID:   "1",
+					Type: "error",
+					Data: "error creating file",
+				}, connections, connectionsMutex)
+				continue
+			}
 		}
 
 		broadcastMessage(Message{

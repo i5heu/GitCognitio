@@ -15,6 +15,7 @@ import (
 // RepoManager is a structure that encapsulates the Git repository operations.
 type RepoManager struct {
 	Repo *git.Repository
+	auth ssh.AuthMethod
 }
 
 // RepoStats holds statistics for a Git repository.
@@ -33,13 +34,14 @@ type RepoStats struct {
 func NewRepoManager(repoURL, path, sshPath string) (*RepoManager, error) {
 	var repo *git.Repository
 	var err error
+	var sshAuth ssh.AuthMethod
 
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
 		// Clone the repository
 
 		// Create ssh auth
-		sshAuth, err := ssh.NewPublicKeysFromFile("git", sshPath, "")
+		sshAuth, err = ssh.NewPublicKeysFromFile("git", sshPath, "")
 		if err != nil {
 			return nil, err
 		}
@@ -59,7 +61,7 @@ func NewRepoManager(repoURL, path, sshPath string) (*RepoManager, error) {
 			}
 
 			// Create ssh auth
-			sshAuth, err := ssh.NewPublicKeysFromFile("git", sshPath, "")
+			sshAuth, err = ssh.NewPublicKeysFromFile("git", sshPath, "")
 			if err != nil {
 				return nil, err
 			}
@@ -78,7 +80,7 @@ func NewRepoManager(repoURL, path, sshPath string) (*RepoManager, error) {
 		return nil, err
 	}
 
-	return &RepoManager{Repo: repo}, nil
+	return &RepoManager{Repo: repo, auth: sshAuth}, nil
 }
 
 // Commit commits changes to the repository.
@@ -117,6 +119,7 @@ func (rm *RepoManager) Pull() error {
 
 	err = w.Pull(&git.PullOptions{
 		RemoteName: "origin",
+		Auth:       rm.auth,
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
@@ -129,6 +132,7 @@ func (rm *RepoManager) Pull() error {
 func (rm *RepoManager) Push() error {
 	err := rm.Repo.Push(&git.PushOptions{
 		RemoteName: "origin",
+		Auth:       rm.auth,
 	})
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		return err
