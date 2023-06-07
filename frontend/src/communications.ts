@@ -37,11 +37,16 @@ export class Communications {
     });
   }
 
-  public send(id: string, type: string, data: string): Promise<any> {
+  public send(
+    id: string,
+    type: string,
+    data: string,
+    path: string = null
+  ): Promise<any> {
     if (!this.isConnected()) {
       return Promise.reject(new Error("WebSocket connection not open"));
     }
-    const message = { id, type, data };
+    const message = { id, type, data, path };
     const promise = new Promise<any>((resolve, reject) => {
       this.messages.set(id, [resolve, reject]);
     });

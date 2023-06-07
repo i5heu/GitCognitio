@@ -41,7 +41,7 @@ export class ChatBody extends HTMLElement {
 
   async messageHandler(message: any) {
     const chatItem = new ChatItem();
-    await chatItem.init();
+    await chatItem.init(this.comms);
     chatItem.addContent(message);
     this.chatHistory.appendChild(chatItem);
 
@@ -82,7 +82,8 @@ export class ChatBody extends HTMLElement {
           this.chatInput.value != ""
         ) {
           const message = this.chatInput.value;
-          this.comms.send("1", "message", message);
+          const id = this.generateId();
+          this.comms.send(id, "message", message);
 
           // clear input after keypress
           setTimeout(() => {
@@ -118,5 +119,19 @@ export class ChatBody extends HTMLElement {
     const totalPaddingHeight = paddingTop + paddingBottom;
 
     return totalPaddingHeight / 2 + this.chatInput.scrollHeight;
+  }
+
+  private generateId(): string {
+    // Generate a unique identifier using any desired method
+    // For simplicity, let's use a random string with 10 characters
+    const characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let id = "";
+
+    for (let i = 0; i < 10; i++) {
+      id += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+
+    return id;
   }
 }

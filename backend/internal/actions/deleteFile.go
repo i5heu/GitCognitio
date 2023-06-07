@@ -11,29 +11,33 @@ func DeleteFile(message types.Message, broadcastChannel *chan types.Message, rm 
 
 	err := gitio.DeleteFile(message.Path)
 	if err != nil {
-		fmt.Println("error creating file", err)
+		fmt.Println("error deleting file", err)
 		broadcastMessage(broadcastChannel, types.Message{
 			ID:   message.ID,
 			Type: "error",
-			Data: "error creating file",
+			Data: "error deleting file",
 		})
+
+		return
 	}
 
 	err = rm.Commit("Delete file: " + message.Path)
 	if err != nil {
-		fmt.Println("error committing file", err)
+		fmt.Println("error commit file delete", err)
 		broadcastMessage(broadcastChannel, types.Message{
 			ID:   message.ID,
 			Type: "error",
-			Data: "error creating file",
+			Data: "error commit file delete",
 		})
+
+		return
 	}
 
 	rm.PushNonBlock()
 
 	broadcastMessage(broadcastChannel, types.Message{
 		ID:   message.ID,
-		Type: "success",
+		Type: "delete",
 		Path: message.Path,
 	})
 }

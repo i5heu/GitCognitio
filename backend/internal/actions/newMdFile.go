@@ -19,6 +19,8 @@ func NewMdFile(message types.Message, broadcastChannel *chan types.Message, rm *
 			Type: "error",
 			Data: "error creating file",
 		})
+
+		return
 	}
 
 	err = rm.Commit("New file: " + path)
@@ -29,13 +31,15 @@ func NewMdFile(message types.Message, broadcastChannel *chan types.Message, rm *
 			Type: "error",
 			Data: "error creating file",
 		})
+
+		return
 	}
 
 	rm.PushNonBlock()
 
 	broadcastMessage(broadcastChannel, types.Message{
 		ID:   message.ID,
-		Type: "success",
+		Type: "message",
 		Path: path,
 		Data: message.Data,
 	})
