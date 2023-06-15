@@ -60,6 +60,9 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 	*connections = append(*connections, c)
 	connectionsMutex.Unlock()
 
+	authorized := false
+	password := "pass123"
+
 	for {
 		_, byteMessage, err := c.ReadMessage()
 		if err != nil {
@@ -71,11 +74,17 @@ func handleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		err = json.Unmarshal(byteMessage, &message)
 		if err != nil {
 			log.Printf("error unmarshalling message: %v\n", err)
-			broadcastMessage(broadcastChannel, types.Message{
-				ID:   "1",
-				Type: "error",
-				Data: "error unmarshalling message",
-			})
+			c.WriteMessage(websocket.TextMessage, []byte("error unmarshalling message"))
+			continue
+		}
+
+		if !authorized {
+			if message.Type == "message" && message.Data == "!pwd "+password {
+				authorized = true
+				c.WriteMessage(websocket.TextMessage, []byte("auth ok"))
+			} else {
+				c.WriteMessage(websocket.TextMessage, []byte("auth error"))
+			}
 			continue
 		}
 
