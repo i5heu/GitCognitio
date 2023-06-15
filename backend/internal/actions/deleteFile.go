@@ -37,7 +37,7 @@ func DeleteFile(message types.Message, broadcastChannel *chan types.Message, rm 
 
 	broadcastMessage(broadcastChannel, types.Message{
 		ID:   message.ID,
-		Type: "delete",
+		Type: "thread-delete",
 		Path: message.Path,
 	})
 }

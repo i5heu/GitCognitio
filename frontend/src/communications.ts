@@ -67,9 +67,20 @@ type RouteFunction = (message: any) => void;
 
 class router {
   private routes: Record<string, RouteFunction> = {};
+  private threads: Record<string, RouteFunction> = {};
 
   public route(route: string, message: any): void {
     console.log("route", route, message);
+
+    if (route.startsWith("thread")) {
+      console.log("thread", message);
+      if (this.threads[message.id]) {
+        this.threads[message.id](message);
+      } else {
+        console.log("no thread", message);
+      }
+      return;
+    }
 
     if (this.routes[route]) {
       console.log("route", route, message);
@@ -79,5 +90,9 @@ class router {
 
   public register(route: string, callback: RouteFunction): void {
     this.routes[route] = callback;
+  }
+
+  public registerThread(id: string, callback: RouteFunction): void {
+    this.threads[id] = callback;
   }
 }
