@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/i5heu/GitCognitio/internal/actions"
 	"github.com/i5heu/GitCognitio/internal/config"
@@ -16,6 +17,8 @@ import (
 )
 
 type Connection struct {
+	Id         string
+	Authorized bool
 	*websocket.Conn
 	sync.Mutex
 }
@@ -34,6 +37,49 @@ var Upgrader = websocket.Upgrader{
 	},
 }
 
+// HandleConnection handles the connection received from the HTTP server.
+func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex, broadcastChannel chan types.Message) {
+	conn, err := UpgradeConnection(w, r)
+	if err != nil {
+		log.Printf("error upgrading connection: %v\n", err)
+		return
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("error closing connection: %v\n", err)
+		}
+	}()
+
+	// AddConnection safely adds a new connection to the existing connection pool.
+	AddConnection(connections, connectionsMutex, conn)
+
+	for {
+		_, byteMessage, err := conn.ReadMessage()
+		if err != nil {
+			log.Printf("error reading message: %v\n", err)
+			break
+		}
+
+		var message types.Message
+		err = json.Unmarshal(byteMessage, &message)
+		if err != nil {
+			log.Printf("error unmarshalling message: %v\n", err)
+			conn.WriteMessage(websocket.TextMessage, []byte("error unmarshalling message"))
+			continue
+		}
+
+		if conn.Authorized {
+			HandleMessage(message, broadcastChannel, rm)
+		} else {
+			err = AuthenticateMessage(message, &conn.Authorized)
+			if err != nil {
+				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				continue
+			}
+		}
+	}
+}
+
 // UpgradeConnection upgrades the HTTP server connection to the WebSocket protocol.
 func UpgradeConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
 	conn, err := Upgrader.Upgrade(w, r, nil)
@@ -45,6 +91,13 @@ func UpgradeConnection(w http.ResponseWriter, r *http.Request) (*Connection, err
 
 // AddConnection adds a new connection to the connection pool.
 func AddConnection(connections *[]*Connection, connectionsMutex *sync.Mutex, conn *Connection) {
+	uuid := uuid.New()
+
+	// prepare connection
+	uuidString := uuid.String()
+	conn.Id = uuidString
+	conn.Authorized = false
+
 	connectionsMutex.Lock()
 	*connections = append(*connections, conn)
 	connectionsMutex.Unlock()
@@ -80,49 +133,6 @@ func HandleMessage(message types.Message, broadcastChannel chan types.Message, r
 			Type: "error",
 			Data: "unknown message type",
 		})
-	}
-}
-
-// HandleConnection handles the connection received from the HTTP server.
-func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex, broadcastChannel chan types.Message) {
-	conn, err := UpgradeConnection(w, r)
-	if err != nil {
-		log.Printf("error upgrading connection: %v\n", err)
-		return
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Printf("error closing connection: %v\n", err)
-		}
-	}()
-
-	AddConnection(connections, connectionsMutex, conn)
-
-	authorized := false
-	for {
-		_, byteMessage, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("error reading message: %v\n", err)
-			break
-		}
-
-		var message types.Message
-		err = json.Unmarshal(byteMessage, &message)
-		if err != nil {
-			log.Printf("error unmarshalling message: %v\n", err)
-			conn.WriteMessage(websocket.TextMessage, []byte("error unmarshalling message"))
-			continue
-		}
-
-		if authorized {
-			HandleMessage(message, broadcastChannel, rm)
-		} else {
-			err = AuthenticateMessage(message, &authorized)
-			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-				continue
-			}
-		}
 	}
 }
 
