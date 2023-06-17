@@ -1,4 +1,4 @@
 package actions
 
-func qrLogin() {
+func QrLogin() {
 }

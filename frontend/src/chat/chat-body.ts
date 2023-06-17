@@ -1,6 +1,7 @@
 import { Communications } from "../communications";
 import { ChatItem } from "./chat-item";
 import { InstanceIdentifier } from "../helper/instanceIdentifier";
+import { QrLoginScanner } from "./qrLoginScanner";
 
 export class ChatBody extends HTMLElement {
   public ID: number = 1;
@@ -12,6 +13,7 @@ export class ChatBody extends HTMLElement {
     this.comms = comms;
 
     customElements.define("chat-item", ChatItem);
+    customElements.define("qr-scanner-item", QrLoginScanner);
 
     fetch("./chat-body.html")
       .then((response) => response.text())
@@ -26,6 +28,10 @@ export class ChatBody extends HTMLElement {
     this.setInputEventListener();
     this.render();
     this.comms.Router.register("message", this.messageHandler.bind(this));
+    this.comms.Router.register(
+      "qrLoginRequest",
+      this.qrLoginHandler.bind(this)
+    );
     this.comms.Router.register("typing", this.typingHandler.bind(this));
   }
 
@@ -44,6 +50,15 @@ export class ChatBody extends HTMLElement {
     await chatItem.init(this.comms);
     chatItem.addContent(message);
     this.chatHistory.appendChild(chatItem);
+
+    //scroll to bottom
+    this.chatHistory.scrollTop = this.chatHistory.scrollHeight;
+  }
+
+  async qrLoginHandler(message: any) {
+    const qrItem = new QrLoginScanner();
+    await qrItem.init(this.comms);
+    this.chatHistory.appendChild(qrItem);
 
     //scroll to bottom
     this.chatHistory.scrollTop = this.chatHistory.scrollHeight;

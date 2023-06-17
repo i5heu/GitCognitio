@@ -3,7 +3,7 @@ import "./main.scss";
 
 import { Communications } from "./communications";
 
-const comms = new Communications("ws://" + window.location.hostname + ":8081/");
+const comms = new Communications("wss://ws.miau.email");
 
 customElements.define("chat-body", ChatBody);
 

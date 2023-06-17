@@ -13,6 +13,7 @@ import (
 	"github.com/i5heu/GitCognitio/internal/actions"
 	"github.com/i5heu/GitCognitio/internal/config"
 	"github.com/i5heu/GitCognitio/internal/gitio"
+	"github.com/i5heu/GitCognitio/internal/helper"
 	"github.com/i5heu/GitCognitio/types"
 )
 
@@ -71,6 +72,10 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		if conn.Authorized {
 			HandleMessage(message, broadcastChannel, rm)
 		} else {
+			if message.Type != "message" && message.Type != "!qrlog" {
+				qrLogin(conn, broadcastChannel)
+				continue
+			}
 			err = AuthenticateMessage(message, &conn.Authorized)
 			if err != nil {
 				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
@@ -78,6 +83,35 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 			}
 		}
 	}
+}
+
+func qrLogin(conn *Connection, broadcastChannel chan types.Message) {
+	qrCodeString, err := helper.GenerateQRCodeMarkdown(conn.Id)
+	if err != nil {
+		log.Printf("error generating qrCodeString: %v\n", err)
+		conn.WriteMessage(websocket.TextMessage, []byte("error generating qrCodeString"))
+		return
+	}
+
+	qrCodeLoginMessage := types.Message{
+		Type: "message",
+		Data: qrCodeString,
+	}
+	byteQrCodeLoginMessage, err := json.Marshal(qrCodeLoginMessage)
+	if err != nil {
+		log.Printf("error marshalling qrCodeLoginMessage: %v\n", err)
+		conn.WriteMessage(websocket.TextMessage, []byte("error marshalling qrCodeLoginMessage"))
+		return
+	}
+	conn.WriteMessage(websocket.TextMessage, byteQrCodeLoginMessage)
+
+	// broadcast qrCodeLoginMessage
+	BroadcastMessage(broadcastChannel, types.Message{
+		Type: "qrLoginRequest",
+		Data: conn.Conn.RemoteAddr().String(),
+	})
+
+	return
 }
 
 // UpgradeConnection upgrades the HTTP server connection to the WebSocket protocol.
@@ -153,6 +187,10 @@ func BroadcastMessageWorker(broadcastChannel <-chan types.Message, connections *
 			connectionsMutex.Lock()
 
 			for i := 0; i < len(*connections); i++ {
+				if !(*connections)[i].Authorized {
+					continue
+				}
+
 				err := (*connections)[i].SafeWrite(websocket.TextMessage, b)
 				if err != nil {
 					if err := (*connections)[i].Close(); err != nil {
