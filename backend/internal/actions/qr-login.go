@@ -1,0 +1,4 @@
+package actions
+
+func qrLogin() {
+}
