@@ -17,3 +17,21 @@ chat-body {
   height: 100%;
   width: 100%;
 }
+
+#modal-qrscanner {
+  display: none;
+
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black background */
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+#qrscanner {
+  width: 100%;
+  height: calc(100% - 50px);
+}

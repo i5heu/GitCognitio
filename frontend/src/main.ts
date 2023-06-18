@@ -16,3 +16,8 @@ comms.connect().then(() => {
   comms.send("1", "login", "bob");
   comms.send("1", "login", "bob");
 });
+
+document.querySelector("#close-qrscanner").addEventListener("click", () => {
+  (document.querySelector("#modal-qrscanner") as HTMLDivElement).style.display =
+    "none";
+});

@@ -1,6 +1,7 @@
 import { Html5QrcodeScanType, Html5QrcodeScanner } from "html5-qrcode";
 import { Communications } from "../communications";
 import { QrScanner } from "../helper/qrcodescanner";
+import { InstanceIdentifier } from "../helper/instanceIdentifier";
 
 export class QrLoginScanner extends HTMLElement {
   message: any;
@@ -30,10 +31,25 @@ export class QrLoginScanner extends HTMLElement {
     this.shadowRoot
       .querySelector(".qr-login-scan")
       .addEventListener("click", () => {
-        function onScanSuccess(decodedText: any, decodedResult: any) {
+        (
+          document.querySelector("#modal-qrscanner") as HTMLDivElement
+        ).style.display = "flex";
+
+        const onScanSuccess = (decodedText: any, decodedResult: any) => {
           // handle the scanned code as you like, for example:
           console.log(`Code matched = ${decodedText}`, decodedResult);
-        }
+          this.coms.send(
+            InstanceIdentifier.getInstanceIdentifier(),
+            "qrLoginApprove",
+            decodedText
+          );
+          console.log("send qrLoginApprove");
+
+          (
+            document.querySelector("#modal-qrscanner") as HTMLDivElement
+          ).style.display = "none";
+          html5QrcodeScanner.clear();
+        };
 
         let config = {
           fps: 10,

@@ -17,19 +17,6 @@ import (
 	"github.com/i5heu/GitCognitio/types"
 )
 
-type Connection struct {
-	Id         string
-	Authorized bool
-	*websocket.Conn
-	sync.Mutex
-}
-
-func (c *Connection) SafeWrite(mt int, payload []byte) error {
-	c.Lock()
-	defer c.Unlock()
-	return c.WriteMessage(mt, payload)
-}
-
 var Upgrader = websocket.Upgrader{
 	ReadBufferSize:  config.ReadBufferSize,
 	WriteBufferSize: config.WriteBufferSize,
@@ -39,7 +26,7 @@ var Upgrader = websocket.Upgrader{
 }
 
 // HandleConnection handles the connection received from the HTTP server.
-func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*Connection, connectionsMutex *sync.Mutex, broadcastChannel chan types.Message) {
+func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoManager, connections *[]*types.Connection, connectionsMutex *sync.Mutex, broadcastChannel chan types.Message) {
 	conn, err := UpgradeConnection(w, r)
 	if err != nil {
 		log.Printf("error upgrading connection: %v\n", err)
@@ -70,7 +57,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		}
 
 		if conn.Authorized {
-			HandleMessage(message, broadcastChannel, rm)
+			HandleMessage(message, broadcastChannel, rm, connections)
 		} else {
 			if message.Type != "message" && message.Type != "!qrlog" {
 				qrLogin(conn, broadcastChannel)
@@ -85,7 +72,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 	}
 }
 
-func qrLogin(conn *Connection, broadcastChannel chan types.Message) {
+func qrLogin(conn *types.Connection, broadcastChannel chan types.Message) {
 	qrCodeString, err := helper.GenerateQRCodeMarkdown(conn.Id)
 	if err != nil {
 		log.Printf("error generating qrCodeString: %v\n", err)
@@ -115,16 +102,16 @@ func qrLogin(conn *Connection, broadcastChannel chan types.Message) {
 }
 
 // UpgradeConnection upgrades the HTTP server connection to the WebSocket protocol.
-func UpgradeConnection(w http.ResponseWriter, r *http.Request) (*Connection, error) {
+func UpgradeConnection(w http.ResponseWriter, r *http.Request) (*types.Connection, error) {
 	conn, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &Connection{Conn: conn}, nil
+	return &types.Connection{Conn: conn}, nil
 }
 
 // AddConnection adds a new connection to the connection pool.
-func AddConnection(connections *[]*Connection, connectionsMutex *sync.Mutex, conn *Connection) {
+func AddConnection(connections *[]*types.Connection, connectionsMutex *sync.Mutex, conn *types.Connection) {
 	uuid := uuid.New()
 
 	// prepare connection
@@ -149,7 +136,7 @@ func AuthenticateMessage(message types.Message, authorized *bool) error {
 }
 
 // HandleMessage performs action based on the message type.
-func HandleMessage(message types.Message, broadcastChannel chan types.Message, rm *gitio.RepoManager) {
+func HandleMessage(message types.Message, broadcastChannel chan types.Message, rm *gitio.RepoManager, connections *[]*types.Connection) {
 	switch message.Type {
 	case "message":
 		actions.NewMdFile(message, &broadcastChannel, rm)
@@ -161,6 +148,8 @@ func HandleMessage(message types.Message, broadcastChannel chan types.Message, r
 			Type: message.Type,
 			Data: message.Data,
 		})
+	case "qrLoginApprove":
+		actions.QrLoginApprove(message, &broadcastChannel, connections)
 	default:
 		BroadcastMessage(broadcastChannel, types.Message{
 			ID:   message.ID,
@@ -174,7 +163,7 @@ func BroadcastMessage(broadcastChannel chan types.Message, message types.Message
 	broadcastChannel <- message
 }
 
-func BroadcastMessageWorker(broadcastChannel <-chan types.Message, connections *[]*Connection, connectionsMutex *sync.Mutex) {
+func BroadcastMessageWorker(broadcastChannel <-chan types.Message, connections *[]*types.Connection, connectionsMutex *sync.Mutex) {
 	go func() {
 		for message := range broadcastChannel {
 			fmt.Println("broadcasting message", message)

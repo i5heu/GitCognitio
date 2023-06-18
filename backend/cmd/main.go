@@ -28,7 +28,7 @@ func main() {
 	}
 	rm.StartPushListener()
 
-	connections := make([]*connection.Connection, 0)
+	connections := make([]*types.Connection, 0)
 	connectionsMutex := &sync.Mutex{}
 	broadcastChannel := make(chan types.Message, 100)
 	connection.BroadcastMessageWorker(broadcastChannel, &connections, connectionsMutex)
