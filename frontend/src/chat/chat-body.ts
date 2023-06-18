@@ -28,6 +28,7 @@ export class ChatBody extends HTMLElement {
     this.setInputEventListener();
     this.render();
     this.comms.Router.register("message", this.messageHandler.bind(this));
+    this.comms.Router.register("error", this.messageHandler.bind(this));
     this.comms.Router.register(
       "qrLoginRequest",
       this.qrLoginHandler.bind(this)

@@ -59,14 +59,16 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		if conn.Authorized {
 			HandleMessage(message, broadcastChannel, rm, connections)
 		} else {
-			if message.Type != "message" && message.Type != "!qrlog" {
+			if message.Type == "message" && message.Data == "!qrlog" {
 				qrLogin(conn, broadcastChannel)
 				continue
 			}
-			err = AuthenticateMessage(message, &conn.Authorized)
-			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-				continue
+			if message.Type == "message" {
+				err = AuthenticateMessage(message, &conn.Authorized)
+				if err != nil {
+					conn.WriteMessage(websocket.TextMessage, json.RawMessage(fmt.Sprintf(`{"type": "error", "data": "%v"}`, err)))
+					continue
+				}
 			}
 		}
 	}
@@ -132,7 +134,7 @@ func AuthenticateMessage(message types.Message, authorized *bool) error {
 		*authorized = true
 		return nil
 	}
-	return errors.New("auth error")
+	return errors.New("Not authorized")
 }
 
 // HandleMessage performs action based on the message type.
