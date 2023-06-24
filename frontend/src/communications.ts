@@ -20,6 +20,7 @@ export class Communications {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = maxReconnectAttempts;
     this.reconnectInterval = reconnectInterval;
+    this.connect();
   }
 
   public connect(): Promise<void> {
@@ -94,7 +95,7 @@ export class Communications {
 
 type RouteFunction = (message: any) => void;
 
-class router {
+export class router {
   private routes: Record<string, RouteFunction> = {};
   private threads: Record<string, RouteFunction> = {};
 

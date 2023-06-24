@@ -57,7 +57,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		}
 
 		if conn.Authorized {
-			HandleMessage(message, broadcastChannel, rm, connections)
+			HandleMessage(message, broadcastChannel, rm, connections, conn)
 		} else {
 			if message.Type == "message" && message.Data == "!qrlog" {
 				qrLogin(conn, broadcastChannel)
@@ -138,7 +138,7 @@ func AuthenticateMessage(message types.Message, authorized *bool) error {
 }
 
 // HandleMessage performs action based on the message type.
-func HandleMessage(message types.Message, broadcastChannel chan types.Message, rm *gitio.RepoManager, connections *[]*types.Connection) {
+func HandleMessage(message types.Message, broadcastChannel chan types.Message, rm *gitio.RepoManager, connections *[]*types.Connection, conn *types.Connection) {
 	switch message.Type {
 	case "message":
 		actions.NewMdFile(message, &broadcastChannel, rm)
@@ -152,6 +152,18 @@ func HandleMessage(message types.Message, broadcastChannel chan types.Message, r
 		})
 	case "qrLoginApprove":
 		actions.QrLoginApprove(message, &broadcastChannel, connections)
+	case "ping":
+		messageInBytes, err := json.Marshal(types.Message{
+			ID:   message.ID,
+			Type: "pong",
+			Data: message.Data,
+		})
+		if err != nil {
+			log.Printf("error marshalling message: %v\n", err)
+			return
+		}
+
+		conn.WriteMessage(websocket.TextMessage, messageInBytes)
 	default:
 		BroadcastMessage(broadcastChannel, types.Message{
 			ID:   message.ID,
