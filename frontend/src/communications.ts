@@ -5,11 +5,21 @@ export class Communications {
     string,
     [(message: any) => void, (error: Error) => void]
   >;
+  private reconnectAttempts: number;
+  private maxReconnectAttempts: number;
+  private reconnectInterval: number;
 
-  constructor(private url: string) {
+  constructor(
+    private url: string,
+    maxReconnectAttempts = 300,
+    reconnectInterval = 2000
+  ) {
     this.socket = null;
     this.messages = new Map();
     this.Router = new router();
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = maxReconnectAttempts;
+    this.reconnectInterval = reconnectInterval;
   }
 
   public connect(): Promise<void> {
@@ -18,6 +28,7 @@ export class Communications {
 
       this.socket.addEventListener("open", () => {
         console.log("WebSocket connection established");
+        this.reconnectAttempts = 0; // Reset reconnection attempts
         resolve();
       });
 
@@ -27,6 +38,21 @@ export class Communications {
 
       this.socket.addEventListener("close", () => {
         console.log("WebSocket connection closed");
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          setTimeout(() => {
+            console.log(
+              `WebSocket attempting to reconnect. Attempt number ${
+                this.reconnectAttempts + 1
+              }`
+            );
+            this.reconnectAttempts++;
+            this.connect(); // Try to reconnect
+          }, this.reconnectInterval);
+        } else {
+          console.log(
+            "WebSocket connection could not be re-established after maximum attempts"
+          );
+        }
       });
 
       this.socket.addEventListener("message", (event) => {
@@ -59,7 +85,10 @@ export class Communications {
   }
 
   public disconnect(): void {
-    this.socket?.close();
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
   }
 }
 
