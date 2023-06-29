@@ -37,7 +37,7 @@ func NewConnection(conn *websocket.Conn) (*Connection, error) {
 }
 
 func (c *Connection) Send(message Message) {
-	if message.mustBeAuth && !c.authorized {
+	if !message.isPublic && !c.authorized {
 		return
 	}
 
