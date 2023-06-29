@@ -51,7 +51,12 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 		err = json.Unmarshal(byteMessage, &message)
 		if err != nil {
 			log.Printf("error unmarshalling message: %v\n", err)
-			conn.WriteMessage(websocket.TextMessage, []byte("error unmarshalling message"))
+			conn.Send(types.Message{
+				ID:   conn.GetId().String(),
+				Type: "error",
+				Data: "error unmarshalling message",
+			})
+
 			continue
 		}
 
@@ -65,7 +70,12 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 			if message.Type == "message" {
 				err = AuthenticateMessage(conn, message)
 				if err != nil {
-					conn.WriteMessage(websocket.TextMessage, json.RawMessage(fmt.Sprintf(`{"type": "error", "data": "%v"}`, err)))
+					conn.Send(types.Message{
+						ID:   conn.GetId().String(),
+						Type: "error",
+						Data: fmt.Sprintf("error generating qrCodeString: %v", err),
+					})
+
 					continue
 				}
 			}
@@ -77,7 +87,11 @@ func qrLogin(conn *types.Connection, broadcastChannel chan types.Message) {
 	qrCodeString, err := helper.GenerateQRCodeMarkdown(conn.GetId().String())
 	if err != nil {
 		log.Printf("error generating qrCodeString: %v\n", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("error generating qrCodeString"))
+		conn.Send(types.Message{
+			ID:   conn.GetId().String(),
+			Type: "error",
+			Data: "error generating qrCodeString",
+		})
 		return
 	}
 
@@ -88,10 +102,20 @@ func qrLogin(conn *types.Connection, broadcastChannel chan types.Message) {
 	byteQrCodeLoginMessage, err := json.Marshal(qrCodeLoginMessage)
 	if err != nil {
 		log.Printf("error marshalling qrCodeLoginMessage: %v\n", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("error marshalling qrCodeLoginMessage"))
+		conn.Send(types.Message{
+			ID:   conn.GetId().String(),
+			Type: "message",
+			Data: "error generating qrCodeString",
+		})
+
 		return
 	}
-	conn.WriteMessage(websocket.TextMessage, byteQrCodeLoginMessage)
+
+	conn.Send(types.Message{
+		ID:   conn.GetId().String(),
+		Type: "message",
+		Data: string(byteQrCodeLoginMessage),
+	})
 
 	// broadcast qrCodeLoginMessage
 	BroadcastMessage(broadcastChannel, types.Message{
@@ -157,7 +181,11 @@ func HandleMessage(message types.Message, broadcastChannel chan types.Message, r
 			return
 		}
 
-		conn.WriteMessage(websocket.TextMessage, messageInBytes)
+		conn.Send(types.Message{
+			ID:   conn.GetId().String(),
+			Type: "message",
+			Data: string(messageInBytes),
+		})
 	default:
 		BroadcastMessage(broadcastChannel, types.Message{
 			ID:   message.ID,
