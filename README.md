@@ -11,6 +11,8 @@ What's more, GitCognito integrates state-of-the-art AI models GPT 3.5 and GPT-4 
 Our primary focus is on optimizing search capabilities and ensuring high-speed usability, especially for power users. So, whether you're trying to locate a piece of information quickly, manage a plethora of knowledge, or simply want a more effective way to organize your thoughts, GitCognito is the tool you've been looking for. Welcome to the future of personal knowledge management!
 
 ## TODO:
+- [X] refactor the broadcast pool so it can handle single messages and is concurrency save 
+
 - [ ] refactor the connection pool and clearly divide between business logic and message handling logic 
 - [ ] refactor the way messages are build especially non auth and auth messages
 - [ ] build a auth token store so that the user can login automatically via a received token at login time

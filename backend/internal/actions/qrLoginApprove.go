@@ -9,19 +9,19 @@ import (
 func QrLoginApprove(message types.Message, broadcastChannel *chan types.Message, connections *[]*types.Connection) {
 	fmt.Println("QrLoginApprove")
 	for _, conn := range *connections {
-		if conn.Id == message.Data {
+		if conn.GetId().String() == message.Data {
 			fmt.Println("Authorized", conn.Id)
-			conn.Lock()
-			conn.Authorized = true
-			conn.Unlock()
+
+			conn.Authorize("this will authorize the connection for all data")
+
 			*broadcastChannel <- types.Message{
-				ID:   conn.Id,
+				ID:   conn.GetId().String(),
 				Type: "message",
 				Data: conn.Conn.RemoteAddr().String() + " is now authorized",
 			}
 
-			conn.Conn.WriteJSON(types.Message{
-				ID:   conn.Id,
+			conn.Send(types.Message{
+				ID:   conn.GetId().String(),
 				Type: "message",
 				Data: "You are now authorized",
 			})

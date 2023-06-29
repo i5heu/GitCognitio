@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/i5heu/GitCognitio/internal/actions"
 	"github.com/i5heu/GitCognitio/internal/config"
@@ -39,7 +38,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 	}()
 
 	// AddConnection safely adds a new connection to the existing connection pool.
-	AddConnection(connections, connectionsMutex, conn)
+	AddConnectionToPool(connections, connectionsMutex, conn)
 
 	for {
 		_, byteMessage, err := conn.ReadMessage()
@@ -56,7 +55,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 			continue
 		}
 
-		if conn.Authorized {
+		if conn.IsAuthorized() {
 			HandleMessage(message, broadcastChannel, rm, connections, conn)
 		} else {
 			if message.Type == "message" && message.Data == "!qrlog" {
@@ -64,7 +63,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 				continue
 			}
 			if message.Type == "message" {
-				err = AuthenticateMessage(message, &conn.Authorized)
+				err = AuthenticateMessage(conn, message)
 				if err != nil {
 					conn.WriteMessage(websocket.TextMessage, json.RawMessage(fmt.Sprintf(`{"type": "error", "data": "%v"}`, err)))
 					continue
@@ -75,7 +74,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 }
 
 func qrLogin(conn *types.Connection, broadcastChannel chan types.Message) {
-	qrCodeString, err := helper.GenerateQRCodeMarkdown(conn.Id)
+	qrCodeString, err := helper.GenerateQRCodeMarkdown(conn.GetId().String())
 	if err != nil {
 		log.Printf("error generating qrCodeString: %v\n", err)
 		conn.WriteMessage(websocket.TextMessage, []byte("error generating qrCodeString"))
@@ -109,29 +108,24 @@ func UpgradeConnection(w http.ResponseWriter, r *http.Request) (*types.Connectio
 	if err != nil {
 		return nil, err
 	}
-	return &types.Connection{Conn: conn}, nil
+
+	c, err := types.NewConnection(conn)
+	return c, err
 }
 
-// AddConnection adds a new connection to the connection pool.
-func AddConnection(connections *[]*types.Connection, connectionsMutex *sync.Mutex, conn *types.Connection) {
-	uuid := uuid.New()
-
-	// prepare connection
-	uuidString := uuid.String()
-	conn.Id = uuidString
-	conn.Authorized = false
-
+// AddConnectionToPool adds a new connection to the connection pool.
+func AddConnectionToPool(connections *[]*types.Connection, connectionsMutex *sync.Mutex, conn *types.Connection) {
 	connectionsMutex.Lock()
 	*connections = append(*connections, conn)
 	connectionsMutex.Unlock()
 }
 
 // AuthenticateMessage checks the provided message for correct authentication data.
-func AuthenticateMessage(message types.Message, authorized *bool) error {
+func AuthenticateMessage(conn *types.Connection, message types.Message) error {
 	password := config.PassWord
 
 	if message.Type == "message" && message.Data == "!pwd "+password {
-		*authorized = true
+		conn.Authorize("this will authorize the connection for all data")
 		return nil
 	}
 	return errors.New("Not authorized")
@@ -182,28 +176,11 @@ func BroadcastMessageWorker(broadcastChannel <-chan types.Message, connections *
 		for message := range broadcastChannel {
 			fmt.Println("broadcasting message", message)
 
-			b, err := json.Marshal(message)
-			if err != nil {
-				log.Printf("error marshalling message: %v\n", err)
-				return
-			}
 			connectionsMutex.Lock()
-
 			for i := 0; i < len(*connections); i++ {
-				if !(*connections)[i].Authorized {
-					continue
-				}
-
-				err := (*connections)[i].SafeWrite(websocket.TextMessage, b)
-				if err != nil {
-					if err := (*connections)[i].Close(); err != nil {
-						log.Printf("error closing connection: %v\n", err)
-					}
-					*connections = append((*connections)[:i], (*connections)[i+1:]...)
-					i--
-				}
+				// authorization is handled in the .Send function
+				(*connections)[i].Send(message)
 			}
-
 			connectionsMutex.Unlock()
 		}
 	}()
