@@ -67,9 +67,9 @@ func (c *Connection) GetId() uuid.UUID {
 
 func (c *Connection) createSendWorker() error {
 	c.sendWorkerRunningMu.Lock()
-	defer c.sendWorkerRunningMu.Unlock()
 
 	if c.sendWorkerRunning {
+		c.sendWorkerRunningMu.Unlock()
 		return errors.New("send worker is already running")
 	}
 
