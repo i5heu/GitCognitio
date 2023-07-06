@@ -84,7 +84,10 @@ func TestConnectionAuthorize(t *testing.T) {
 	c, err := NewConnection(conn)
 	assert.NoError(t, err)
 
-	c.Authorize("this will authorize the connection for all data")
+	// make bordcast channel
+	broadcastChannel := make(chan Message, 256)
+
+	c.Authorize("this will authorize the connection for all data", &broadcastChannel, c)
 
 	assert.True(t, c.IsAuthorized())
 }

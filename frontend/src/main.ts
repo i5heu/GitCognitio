@@ -4,7 +4,7 @@ import "./main.scss";
 import { Communications } from "./communications";
 import { Ping } from "./ping";
 
-const comms = new Communications("ws://localhost:8081");
+const comms = new Communications("wss://ws.miau.email");
 new Ping(comms).startPing(500);
 
 customElements.define("chat-body", ChatBody);

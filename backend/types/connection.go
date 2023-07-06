@@ -51,11 +51,24 @@ func (c *Connection) IsAuthorized() bool {
 	return c.authorized
 }
 
-func (c *Connection) Authorize(risk string) {
+func (c *Connection) Authorize(risk string, broadcastChannel *chan Message, conn *Connection) {
 	if "this will authorize the connection for all data" == risk {
 		c.authorizedMu.Lock()
 		defer c.authorizedMu.Unlock()
 		c.authorized = true
+
+		*broadcastChannel <- Message{
+			ID:   conn.GetId().String(),
+			Type: "message",
+			Data: conn.Conn.RemoteAddr().String() + " is now authorized",
+		}
+
+		conn.Send(Message{
+			ID:   conn.GetId().String(),
+			Type: "message",
+			Data: "You are now authorized",
+		})
+
 	} else {
 		panic("the developer was not aware of the risk of this function")
 	}

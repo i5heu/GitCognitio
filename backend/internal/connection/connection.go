@@ -68,7 +68,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request, rm *gitio.RepoMana
 				continue
 			}
 			if message.Type == "message" {
-				err = AuthenticateMessage(conn, message)
+				err = AuthenticateMessage(conn, message, &broadcastChannel)
 				if err != nil {
 					conn.Send(types.Message{
 						ID:   conn.GetId().String(),
@@ -145,11 +145,11 @@ func AddConnectionToPool(connections *[]*types.Connection, connectionsMutex *syn
 }
 
 // AuthenticateMessage checks the provided message for correct authentication data.
-func AuthenticateMessage(conn *types.Connection, message types.Message) error {
+func AuthenticateMessage(conn *types.Connection, message types.Message, broadcastChannel *chan types.Message) error {
 	password := config.PassWord
 
 	if message.Type == "message" && message.Data == "!pwd "+password {
-		conn.Authorize("this will authorize the connection for all data")
+		conn.Authorize("this will authorize the connection for all data", broadcastChannel, conn)
 		return nil
 	}
 	return errors.New("Not authorized")
@@ -171,20 +171,10 @@ func HandleMessage(message types.Message, broadcastChannel chan types.Message, r
 	case "qrLoginApprove":
 		actions.QrLoginApprove(message, &broadcastChannel, connections)
 	case "ping":
-		messageInBytes, err := json.Marshal(types.Message{
+		conn.Send(types.Message{
 			ID:   message.ID,
 			Type: "pong",
 			Data: message.Data,
-		})
-		if err != nil {
-			log.Printf("error marshalling message: %v\n", err)
-			return
-		}
-
-		conn.Send(types.Message{
-			ID:   conn.GetId().String(),
-			Type: "message",
-			Data: string(messageInBytes),
 		})
 	default:
 		BroadcastMessage(broadcastChannel, types.Message{
